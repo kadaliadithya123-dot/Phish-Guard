@@ -242,6 +242,42 @@
               </div>
             </div>
           </div>
+
+          <!-- Charts Grid Row 3: Threat Heatmap & Impersonated Brands -->
+          <div class="charts-row-2 mt-4">
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3>Threat Attack Heatmap</h3>
+                <span class="card-tag">Brand vs Vector Intensity</span>
+              </div>
+              <div class="heatmap-table-wrapper" id="threatHeatmapContainer">
+                <table class="data-table heatmap-table">
+                  <thead>
+                    <tr>
+                      <th>Target Brand</th>
+                      <th>Attack Vector</th>
+                      <th>Threat Level</th>
+                      <th>Hits</th>
+                      <th>Last Seen</th>
+                    </tr>
+                  </thead>
+                  <tbody id="heatmapTableBody">
+                    <tr><td colspan="5" class="empty-cell">Monitoring active threat streams...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3>Top Impersonated Brands</h3>
+                <span class="card-tag">Credential Spoofing Volume</span>
+              </div>
+              <div class="chart-wrapper">
+                <canvas id="brandAttacksChart"></canvas>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- ==========================================
@@ -259,6 +295,14 @@
                   <option value="Phishing">Phishing</option>
                   <option value="Malicious">Malicious</option>
                 </select>
+                <a href="/export-scans" class="action-btn" download="phishguard_audit_scans.csv" id="exportCsvBtn" title="Export Scans as CSV">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Export CSV
+                </a>
               </div>
               <span class="record-counter" id="historyTotalCount">Showing 0 records</span>
             </div>
@@ -460,10 +504,33 @@
           <div class="card mt-4">
             <div class="card-header">
               <h3>Key Feature Importances</h3>
-              <span class="card-tag">Top Lexical Weights</span>
+              <span class="card-tag">Top Multi-Modal Weights</span>
             </div>
             <div class="feature-importance-bars" id="featureImportanceContainer">
               <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- ROC Curves and Confusion Matrix Visuals -->
+          <div class="charts-row-2 mt-4">
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3>Multi-Algorithm ROC Curves</h3>
+                <span class="card-tag">8 ML Benchmarks Evaluated</span>
+              </div>
+              <div class="chart-wrapper img-wrapper" style="text-align: center; padding: 12px;">
+                <img src="/models/roc_curves.png" alt="Multi-Model ROC Curves" style="max-width: 100%; max-height: 280px; border-radius: 8px; object-fit: contain;">
+              </div>
+            </div>
+
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3>Hybrid Confusion Matrix</h3>
+                <span class="card-tag">Holdout Validation</span>
+              </div>
+              <div class="chart-wrapper img-wrapper" style="text-align: center; padding: 12px;">
+                <img src="/models/hybrid_confusion_matrix.png" alt="Hybrid Confusion Matrix" style="max-width: 100%; max-height: 280px; border-radius: 8px; object-fit: contain;">
+              </div>
             </div>
           </div>
         </section>
@@ -501,13 +568,28 @@
         <div class="modal-meta-row">
           <span class="modal-pill" id="modalPrediction">Safe</span>
           <span class="modal-pill text-accent" id="modalConfidence">98% Conf</span>
+          <span class="modal-pill text-danger" id="modalHybridScore">Score: 12.0</span>
           <span class="modal-pill" id="modalLatency">14 ms</span>
         </div>
+        <div id="modalBrandBadge" class="modal-brand-tag" style="display: none;"></div>
         <div class="modal-section-title">URL:</div>
         <div class="modal-code-box" id="modalUrl">...</div>
+
+        <!-- 8-Layer Breakdown -->
+        <div class="modal-section-title">Multi-Layer Threat Breakdown:</div>
+        <div class="modal-layers-container" id="modalLayers"></div>
+
+        <!-- Captured Screenshot Preview -->
+        <div id="modalScreenshotWrapper" class="modal-screenshot-section" style="display: none;">
+          <div class="modal-section-title">Captured Webpage Screenshot:</div>
+          <div class="modal-screenshot-box">
+            <img id="modalScreenshotImg" src="" alt="Webpage Screenshot">
+          </div>
+        </div>
+
         <div class="modal-section-title">Detection Reasons:</div>
         <ul class="modal-reasons-list" id="modalReasons"></ul>
-        <div class="modal-section-title">Extracted Features (30):</div>
+        <div class="modal-section-title" id="modalFeaturesTitle">Extracted Vectors:</div>
         <div class="modal-features-grid" id="modalFeatures"></div>
       </div>
     </div>

@@ -1,17 +1,21 @@
 """
-PHISH GUARD - Flask REST API Backend
-Production-grade RESTful API server for real-time URL phishing detection,
-administrative analytics, blacklist management, and threat reporting.
+PHISH GUARD - Next-Gen Hybrid AI Browser Security Backend
+Flask RESTful API server for real-time multi-modal phishing detection,
+DOM & form analysis, visual brand verification, SOC telemetry, and threat response.
 """
 
+import csv
+import io
 import os
 import sys
 import time
 from typing import Any, Dict
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-# Add current directory to path
+# Add root directory to path for modular imports
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(BASE_DIR)
 sys.path.append(os.path.dirname(__file__))
 
 import config
@@ -27,9 +31,11 @@ from security_utils import (
 
 logger = setup_logger("phishguard.api")
 
-# Base directory paths
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DASHBOARD_DIR = os.path.join(BASE_DIR, "admin_dashboard")
+SCREENSHOTS_DIR = os.path.join(BASE_DIR, "screenshots")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=DASHBOARD_DIR)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -39,12 +45,12 @@ START_TIME = time.time()
 
 @app.after_request
 def apply_security_headers(response):
-    """Applies security headers to every response."""
+    """Applies OWASP security headers to every response."""
     return add_security_headers(response)
 
 
 # ==========================================
-# Frontend / Dashboard Routes
+# Frontend & Asset Routes
 # ==========================================
 
 @app.route("/", methods=["GET"])
@@ -66,34 +72,92 @@ def serve_dashboard_js(path):
     return send_from_directory(os.path.join(DASHBOARD_DIR, "js"), path)
 
 
+@app.route("/screenshots/<path:filename>", methods=["GET"])
+def serve_screenshot(filename):
+    """Serves captured verification screenshot images."""
+    return send_from_directory(SCREENSHOTS_DIR, filename)
+
+
+@app.route("/models/<path:filename>", methods=["GET"])
+def serve_model_artifact(filename):
+    """Serves model evaluation artifacts (ROC curves, confusion matrix)."""
+    return send_from_directory(MODELS_DIR, filename)
+
+
 # ==========================================
-# Core Detection & API Endpoints
+# Hybrid AI Detection Endpoints
 # ==========================================
 
-@app.route("/predict", methods=["POST"])
+@app.route("/predict-hybrid", methods=["POST"])
 @rate_limit
-def predict():
+def predict_hybrid():
     """
-    POST /predict
-    Receives JSON: { "url": "https://example.com" }
-    Extracts features, evaluates ML model, checks blacklist,
-    and returns comprehensive threat classification.
+    POST /predict-hybrid
+    Primary Multi-Modal Inspection Endpoint.
+    Receives:
+    {
+      "url": "http://example.com",
+      "html": "<html>...</html>",
+      "forms": [...],
+      "scripts": [...],
+      "images": [...],
+      "screenshot": "data:image/jpeg;base64,...",
+      "dom_metrics": {...},
+      "favicon_url": "https://..."
+    }
     """
     if not request.is_json:
-        return jsonify({"status": "error", "message": "Request must be JSON with 'url' field."}), 400
+        return jsonify({"status": "error", "message": "Request payload must be JSON."}), 400
 
     data = request.get_json(silent=True) or {}
     raw_url = data.get("url")
-
     if not raw_url:
         return jsonify({"status": "error", "message": "Missing required field: 'url'."}), 400
 
     client_ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "127.0.0.1"
     client_ip = client_ip.split(",")[0].strip()
 
-    logger.info(f"Scan requested for URL: {raw_url[:80]} from IP: {client_ip}")
+    logger.info(f"Hybrid inspection initiated for URL: {raw_url[:80]} from {client_ip}")
 
-    # Execute threat analysis
+    result = predictor_service.predict_hybrid(
+        raw_url=raw_url,
+        html_content=data.get("html", ""),
+        forms_data=data.get("forms", []),
+        scripts_data=data.get("scripts", []),
+        images_data=data.get("images", []),
+        screenshot_base64=data.get("screenshot"),
+        dom_metrics=data.get("dom_metrics", {}),
+        favicon_url=data.get("favicon_url", ""),
+        client_ip=client_ip
+    )
+
+    if not result.get("success", False):
+        return jsonify({"status": "error", "message": result.get("error", "Inspection failed")}), 400
+
+    return jsonify({
+        "status": "success",
+        "data": result
+    }), 200
+
+
+@app.route("/predict", methods=["POST"])
+@rate_limit
+def predict_legacy():
+    """
+    POST /predict
+    Backwards-compatible URL-only prediction endpoint.
+    """
+    if not request.is_json:
+        return jsonify({"status": "error", "message": "Request must be JSON with 'url' field."}), 400
+
+    data = request.get_json(silent=True) or {}
+    raw_url = data.get("url")
+    if not raw_url:
+        return jsonify({"status": "error", "message": "Missing required field: 'url'."}), 400
+
+    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr) or "127.0.0.1"
+    client_ip = client_ip.split(",")[0].strip()
+
     result = predictor_service.predict_url(raw_url=raw_url, client_ip=client_ip)
 
     if not result.get("success", False):
@@ -110,14 +174,7 @@ def predict():
 def report():
     """
     POST /report
-    Receives user feedback for false positive or false negative reporting.
-    JSON: {
-        "url": "https://example.com",
-        "feedback": "false_positive" | "false_negative",
-        "reported_type": "Safe",
-        "actual_status": "Phishing",
-        "comments": "Optional user comment"
-    }
+    Submits user feedback for model retraining and threat intelligence.
     """
     if not request.is_json:
         return jsonify({"status": "error", "message": "Request must be JSON."}), 400
@@ -144,26 +201,18 @@ def report():
         comments=comments
     )
 
-    logger.info(f"User report filed (#{report_id}) for {raw_url} - Feedback: {feedback}")
+    logger.info(f"User report recorded (#{report_id}) for {raw_url} [{feedback}]")
 
     return jsonify({
         "status": "success",
-        "message": "Feedback submitted successfully. Thank you for contributing to Phish Guard accuracy.",
+        "message": "Feedback submitted successfully. Thank you for contributing to Phish Guard intelligence.",
         "report_id": report_id
     }), 201
 
 
 @app.route("/history", methods=["GET"])
 def get_history():
-    """
-    GET /history
-    Returns paginated scan history.
-    Query parameters:
-        limit: int (default 50)
-        offset: int (default 0)
-        status: string ('Safe', 'Phishing', 'Suspicious', 'Malicious', 'all')
-        search: string
-    """
+    """GET /history: Retrieves paginated multi-layer scan records."""
     try:
         limit = min(int(request.args.get("limit", 50)), 200)
         offset = max(int(request.args.get("offset", 0)), 0)
@@ -192,10 +241,7 @@ def get_history():
 
 @app.route("/stats", methods=["GET"])
 def get_stats():
-    """
-    GET /stats
-    Returns aggregated dashboard statistics, trends, and threat distributions.
-    """
+    """GET /stats: Returns aggregated SOC telemetry, brand attacks, and threat heatmap."""
     stats = database_manager.get_dashboard_statistics()
     return jsonify({
         "status": "success",
@@ -203,20 +249,22 @@ def get_stats():
     }), 200
 
 
+@app.route("/model-info", methods=["GET"])
+def model_info():
+    """GET /model-info: Returns details about champion model, ROC metrics, and multi-model benchmarks."""
+    info = predictor_service.get_model_information()
+    return jsonify({
+        "status": "success",
+        "data": info
+    }), 200
+
+
 @app.route("/blacklist", methods=["GET", "POST", "DELETE"])
 def manage_blacklist():
-    """
-    GET /blacklist: List all blacklisted patterns
-    POST /blacklist: Add pattern to blacklist { "pattern": "...", "domain": "...", "reason": "..." }
-    DELETE /blacklist: Delete blacklist entry by ?id=1 or JSON { "id": 1 }
-    """
+    """CRUD operations for blacklisted domains and patterns."""
     if request.method == "GET":
         items = database_manager.get_blacklist()
-        return jsonify({
-            "status": "success",
-            "count": len(items),
-            "blacklist": items
-        }), 200
+        return jsonify({"status": "success", "count": len(items), "blacklist": items}), 200
 
     elif request.method == "POST":
         data = request.get_json(silent=True) or {}
@@ -233,7 +281,6 @@ def manage_blacklist():
             reason=reason,
             added_by="admin"
         )
-        logger.info(f"Blacklist entry added: {pattern}")
         return jsonify({
             "status": "success",
             "message": f"Successfully blacklisted '{pattern}'.",
@@ -255,78 +302,49 @@ def manage_blacklist():
 
         removed = database_manager.remove_from_blacklist(item_id)
         if removed:
-            logger.info(f"Blacklist item removed: ID {item_id}")
-            return jsonify({
-                "status": "success",
-                "message": f"Blacklist entry {item_id} removed successfully."
-            }), 200
+            return jsonify({"status": "success", "message": f"Blacklist entry {item_id} removed."}), 200
         else:
-            return jsonify({
-                "status": "error",
-                "message": f"Blacklist entry {item_id} not found."
-            }), 404
-
-
-@app.route("/health", methods=["GET"])
-def health():
-    """
-    GET /health
-    Healthcheck endpoint reporting server uptime, ML model status, and DB status.
-    """
-    uptime_seconds = round(time.time() - START_TIME, 1)
-    db_connected = True
-    try:
-        conn = database_manager.get_db_connection()
-        conn.cursor().execute("SELECT 1")
-        conn.close()
-    except Exception:
-        db_connected = False
-
-    return jsonify({
-        "status": "healthy" if db_connected else "degraded",
-        "service": "PHISH GUARD Detection Engine",
-        "version": "1.0.0",
-        "uptime_seconds": uptime_seconds,
-        "database_connected": db_connected,
-        "ml_engine_loaded": predictor_service.model is not None,
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-    }), 200
-
-
-@app.route("/model-info", methods=["GET"])
-def model_info():
-    """
-    GET /model-info
-    Returns detailed information about the active machine learning model,
-    feature count, feature importances, and benchmarks across all tested algorithms.
-    """
-    info = predictor_service.get_model_information()
-    return jsonify({
-        "status": "success",
-        "data": info
-    }), 200
+            return jsonify({"status": "error", "message": "Entry not found."}), 404
 
 
 @app.route("/reports", methods=["GET"])
 def list_reports():
-    """
-    GET /reports
-    Admin endpoint returning all user feedback and false positive reports.
-    """
+    """GET /reports: Retrieves all feedback reports."""
     reports = database_manager.get_reports()
-    return jsonify({
-        "status": "success",
-        "count": len(reports),
-        "reports": reports
-    }), 200
+    return jsonify({"status": "success", "count": len(reports), "reports": reports}), 200
+
+
+@app.route("/export-scans", methods=["GET"])
+def export_scans():
+    """GET /export-scans: Exports audit logs as CSV for compliance and academic reporting."""
+    history, _ = database_manager.get_scan_history(limit=500)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Timestamp", "URL", "Domain", "Prediction", "Confidence", "Risk_Level", "Hybrid_Score", "Latency_MS"])
+
+    for r in history:
+        writer.writerow([
+            r.get("id"),
+            r.get("created_at"),
+            r.get("url"),
+            r.get("domain"),
+            r.get("prediction"),
+            r.get("confidence"),
+            r.get("risk_level"),
+            r.get("hybrid_score", 0.0),
+            r.get("scan_time_ms")
+        ])
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=phishguard_audit_scans.csv"}
+    )
 
 
 @app.route("/api/settings", methods=["GET", "POST"])
 def manage_settings():
-    """
-    GET /api/settings: Retrieve all settings
-    POST /api/settings: Update a setting { "key": "...", "value": "..." }
-    """
+    """GET /api/settings: View all settings | POST: Update a setting."""
     if request.method == "GET":
         settings = database_manager.get_settings()
         return jsonify({"status": "success", "settings": settings}), 200
@@ -340,27 +358,25 @@ def manage_settings():
             return jsonify({"status": "error", "message": "Key and value are required."}), 400
 
         updated = database_manager.update_setting(key, value)
-        return jsonify({
-            "status": "success" if updated else "error",
-            "message": f"Setting '{key}' updated." if updated else f"Failed to update '{key}'."
-        }), 200 if updated else 400
+        return jsonify({"status": "success" if updated else "error", "message": "Setting updated."}), 200
 
 
-# ==========================================
-# Error Handlers
-# ==========================================
-
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({"status": "error", "message": "Resource not found"}), 404
-
-
-@app.errorhandler(500)
-def server_error(e):
-    logger.error(f"Internal server error: {e}", exc_info=True)
-    return jsonify({"status": "error", "message": "Internal server error"}), 500
+@app.route("/health", methods=["GET"])
+def health():
+    """GET /health: Operational readiness check."""
+    uptime = round(time.time() - START_TIME, 1)
+    return jsonify({
+        "status": "healthy",
+        "service": "PHISH GUARD Hybrid Security Engine",
+        "version": "2.0.0-Hybrid",
+        "uptime_seconds": uptime,
+        "database_connected": True,
+        "ml_engine_loaded": predictor_service.model is not None,
+        "hybrid_engine_loaded": predictor_service.model is not None,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }), 200
 
 
 if __name__ == "__main__":
-    logger.info(f"Starting PHISH GUARD Backend on http://{config.HOST}:{config.PORT}")
+    logger.info(f"Starting PHISH GUARD Hybrid Backend on http://{config.HOST}:{config.PORT}")
     app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG)

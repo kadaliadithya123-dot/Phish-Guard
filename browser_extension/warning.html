@@ -22,32 +22,41 @@
       </div>
 
       <div class="threat-classification" id="threatClassification">
-        CRITICAL THREAT DETECTED
+        CRITICAL HYBRID THREAT DETECTED
       </div>
-      <h1 class="warning-title">Deceptive or Malicious Website Blocked</h1>
+      <h1 class="warning-title">Deceptive Phishing Website Blocked</h1>
       <p class="warning-subtitle">
-        Phish Guard's Machine Learning and Heuristic Defense Engine identified this page as an active credential phishing or security risk.
+        Phish Guard's Hybrid AI Engine analyzed the URL structure, HTML source, login forms, JavaScript behaviors, and visual brand identity, identifying this page as an active credential harvesting threat.
       </p>
+
+      <!-- Cloned Brand Impersonation Alert -->
+      <div class="brand-spoof-box" id="brandSpoofBox" style="display: none;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span id="brandSpoofText">Warning: Brand impersonation detected</span>
+      </div>
 
       <!-- URL Meta Box -->
       <div class="url-meta-box">
-        <div class="url-label">SUSPICIOUS DESTINATION</div>
+        <div class="url-label">BLOCKED DESTINATION</div>
         <div class="target-url" id="targetUrlDisplay">http://...</div>
       </div>
 
       <!-- Threat Metrics Row -->
       <div class="threat-stats-row">
         <div class="threat-stat-card">
-          <span class="stat-label">Risk Level</span>
+          <span class="stat-label">Risk Severity</span>
           <span class="stat-value text-danger" id="riskLevelDisplay">Critical</span>
         </div>
         <div class="threat-stat-card">
-          <span class="stat-label">ML Confidence</span>
-          <span class="stat-value" id="confidenceDisplay">99.4%</span>
+          <span class="stat-label">Hybrid Threat Score</span>
+          <span class="stat-value text-danger" id="hybridScoreDisplay">92.4 / 100</span>
         </div>
         <div class="threat-stat-card">
-          <span class="stat-label">Model Verification</span>
-          <span class="stat-value text-accent">Active ML Guard</span>
+          <span class="stat-label">AI Confidence</span>
+          <span class="stat-value" id="confidenceDisplay">99.4%</span>
         </div>
       </div>
 
@@ -59,11 +68,11 @@
             <line x1="12" y1="16" x2="12" y2="12"/>
             <line x1="12" y1="8" x2="12.01" y2="8"/>
           </svg>
-          Detection Reasons & Threat Indicators:
+          Multi-Modal Detection Indicators:
         </div>
         <ul class="reasons-list" id="warningReasonsList">
-          <li>Deceptive domain syntax mimicking legitimate institutional services.</li>
-          <li>Unencrypted transmission or spoofed top-level domain structure.</li>
+          <li>Cross-domain external credential exfiltration form detected.</li>
+          <li>Visual layout and perceptual color palette matches authentic brand portal.</li>
         </ul>
       </div>
 
@@ -89,10 +98,10 @@
 
       <!-- Collapsible Educational Section -->
       <div class="educational-panel" id="educationalPanel">
-        <h3>How Phishing Attacks Work</h3>
-        <p>Phishing websites impersonate legitimate services (such as banking institutions, cloud providers, or social networks) to harvest your login credentials, credit card details, or sensitive cryptographic keys.</p>
-        <h4>What Phish Guard Detected on This URL:</h4>
-        <p>Our 30-feature vector analyzed the lexical anatomy, domain age heuristics, Shannon entropy, homoglyph lookalikes, and known phishing patterns to prevent credential theft before page rendering.</p>
+        <h3>How Phish Guard Protected You</h3>
+        <p>Phishing attacks construct deceptive clones of financial institutions, social platforms, and enterprise workspaces to steal passwords, OTP tokens, and session cookies.</p>
+        <h4>Hybrid Multi-Layer Verification:</h4>
+        <p>Unlike simple URL-based filters, Phish Guard's Hybrid Engine analyzed 101 features across 8 security layers—including DOM structure, credential submission routes, JavaScript obfuscation, and perceptual screenshot matching—to block this threat before confidential data could be submitted.</p>
       </div>
 
       <div class="report-status-msg" id="reportStatusMsg"></div>

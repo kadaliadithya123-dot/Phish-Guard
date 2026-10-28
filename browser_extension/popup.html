@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PHISH GUARD</title>
+  <title>PHISH GUARD - Hybrid AI Security</title>
   <link rel="stylesheet" href="popup.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +22,7 @@
         </div>
         <div class="brand-text">
           <span class="brand-title">PHISH<span class="accent-text">GUARD</span></span>
-          <span class="engine-badge">ML 3.12</span>
+          <span class="engine-badge">HYBRID AI 2.0</span>
         </div>
       </div>
       <div class="header-actions">
@@ -32,7 +32,7 @@
             <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
           </svg>
         </button>
-        <button id="rescanBtn" class="icon-btn" title="Rescan Current URL">
+        <button id="rescanBtn" class="icon-btn" title="Deep Multi-Layer Rescan">
           <svg id="rescanIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M23 4v6h-6M1 20v-6h6"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -43,15 +43,19 @@
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="tab-btn active" data-tab="scanTab">Live Scan</button>
-      <button class="tab-btn" data-tab="featuresTab">Features</button>
+      <button class="tab-btn active" data-tab="scanTab">Hybrid Scan</button>
+      <button class="tab-btn" data-tab="layersTab">Layers</button>
+      <button class="tab-btn" data-tab="featuresTab">Vectors</button>
       <button class="tab-btn" data-tab="historyTab">History</button>
-      <button class="tab-btn" data-tab="reportTab">Feedback</button>
+      <button class="tab-btn" data-tab="reportTab">Report</button>
     </nav>
 
-    <!-- Main Content Tabs -->
+    <!-- Main Content Area -->
     <main class="tab-content-area">
-      <!-- Tab 1: Live Scan -->
+
+      <!-- ==========================================
+           TAB 1: HYBRID SCAN OVERVIEW
+           ========================================== -->
       <section id="scanTab" class="tab-pane active">
         <!-- Target URL Bar -->
         <div class="target-url-box">
@@ -59,7 +63,16 @@
           <div class="url-text" id="targetUrlText" title="Current URL">Detecting active tab...</div>
         </div>
 
-        <!-- Threat Result Card -->
+        <!-- Cloned Brand Alert Banner -->
+        <div class="brand-alert-banner" id="brandAlertBanner" style="display: none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span id="brandAlertText">Impersonation detected</span>
+        </div>
+
+        <!-- Main Status Card with Hybrid Score Gauge -->
         <div class="status-card" id="statusCard">
           <div class="status-header">
             <div class="status-indicator-ring" id="statusRing">
@@ -70,9 +83,13 @@
               <div class="status-label" id="statusLabel">SAFE WEBSITE</div>
               <div class="risk-badge" id="riskBadge">Low Risk</div>
             </div>
+            <div class="score-pill-box">
+              <span class="score-pill-label">HYBRID SCORE</span>
+              <span class="score-pill-val" id="hybridScoreVal">12.0</span>
+            </div>
           </div>
 
-          <!-- Metrics Row -->
+          <!-- Quick Metrics Grid -->
           <div class="metrics-grid">
             <div class="metric-item">
               <span class="metric-title">Confidence</span>
@@ -83,33 +100,47 @@
               <span class="metric-val" id="latencyVal">-- ms</span>
             </div>
             <div class="metric-item">
-              <span class="metric-title">Domain</span>
-              <span class="metric-val domain-truncate" id="domainVal">--</span>
+              <span class="metric-title">Forms / Inputs</span>
+              <span class="metric-val" id="formsCountVal">0</span>
             </div>
           </div>
         </div>
 
-        <!-- Detection Reasons List -->
+        <!-- Key Detection Reasons -->
         <div class="reasons-panel">
-          <div class="panel-subtitle">Key Security Indicators</div>
+          <div class="panel-subtitle">Multi-Modal Threat Indicators</div>
           <ul class="reasons-list" id="reasonsList">
-            <li class="loading-placeholder">Evaluating heuristic and ML signatures...</li>
+            <li class="loading-placeholder">Evaluating URL, DOM, scripts, and visual appearance...</li>
           </ul>
         </div>
       </section>
 
-      <!-- Tab 2: Feature Breakdown -->
-      <section id="featuresTab" class="tab-pane">
-        <div class="features-summary-header">
-          <span class="features-title">Extracted Lexical & Security Vectors</span>
-          <span class="features-count-tag" id="featureCountTag">30 Features</span>
-        </div>
-        <div class="features-scroll-box" id="featuresListContainer">
-          <div class="loading-placeholder">Loading extracted URL vectors...</div>
+      <!-- ==========================================
+           TAB 2: MULTI-LAYER BREAKDOWN
+           ========================================== -->
+      <section id="layersTab" class="tab-pane">
+        <div class="panel-subtitle" style="margin-bottom: 12px;">7-Layer Security Threat Weights</div>
+        <div class="layer-bars-container" id="layerBarsContainer">
+          <!-- Dynamically populated layer bars -->
         </div>
       </section>
 
-      <!-- Tab 3: Local Scan History -->
+      <!-- ==========================================
+           TAB 3: EXTRACTED FEATURES
+           ========================================== -->
+      <section id="featuresTab" class="tab-pane">
+        <div class="features-summary-header">
+          <span class="features-title">Extracted Multi-Modal Vectors</span>
+          <span class="features-count-tag" id="featureCountTag">42+ Features</span>
+        </div>
+        <div class="features-scroll-box" id="featuresListContainer">
+          <div class="loading-placeholder">Loading extracted vectors...</div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           TAB 4: LOCAL SCAN HISTORY
+           ========================================== -->
       <section id="historyTab" class="tab-pane">
         <div class="history-header">
           <span class="panel-subtitle">Recent Scans in This Session</span>
@@ -120,11 +151,13 @@
         </div>
       </section>
 
-      <!-- Tab 4: Report False Positive / Negative -->
+      <!-- ==========================================
+           TAB 5: THREAT REPORTING
+           ========================================== -->
       <section id="reportTab" class="tab-pane">
         <div class="report-box">
           <span class="panel-subtitle">Report Detection Inaccuracy</span>
-          <p class="report-desc">Help improve Phish Guard model weights by flagging misclassified sites.</p>
+          <p class="report-desc">Submit false positive or false negative intelligence to the SOC retraining queue.</p>
 
           <form id="reportForm">
             <div class="form-group">
@@ -132,7 +165,7 @@
               <div class="radio-group">
                 <label class="radio-label">
                   <input type="radio" name="reportType" value="false_positive" checked>
-                  <span>False Positive (Safe site flagged as threat)</span>
+                  <span>False Positive (Legitimate site flagged as threat)</span>
                 </label>
                 <label class="radio-label">
                   <input type="radio" name="reportType" value="false_negative">
@@ -151,16 +184,17 @@
           </form>
         </div>
       </section>
+
     </main>
 
     <!-- Footer -->
     <footer class="app-footer">
       <div class="footer-left">
         <span class="status-dot online"></span>
-        <span class="footer-text">Engine Online</span>
+        <span class="footer-text">Hybrid Engine Online</span>
       </div>
       <a href="http://127.0.0.1:5000/dashboard" target="_blank" class="dashboard-link">
-        Admin Dashboard →
+        SOC Dashboard →
       </a>
     </footer>
   </div>

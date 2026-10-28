@@ -1,9 +1,12 @@
 """
-PHISH GUARD - Database Manager Module
-Provides thread-safe SQLite connection management and parameterized CRUD operations
-for ScanHistory, Blacklist, Reports, ModelMetrics, Settings, and Users.
+PHISH GUARD - Hybrid AI Browser Security System
+Module: backend.database_manager
+
+Thread-safe SQLite connection management and parameterized CRUD operations
+for ScanHistory, Blacklist, Reports, ModelMetrics, ThreatHeatmap, Settings, and Users.
 """
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -32,8 +35,26 @@ def init_db():
         with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
             conn.executescript(f.read())
 
-        # Seed default admin if missing
+        # Check and migrate columns if needed
         cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(ScanHistory)")
+        existing_cols = [r["name"] for r in cursor.fetchall()]
+
+        new_cols = [
+            ("html_hash", "TEXT DEFAULT ''"),
+            ("hybrid_score", "REAL DEFAULT 0.0"),
+            ("layer_scores_json", "TEXT DEFAULT '{}'"),
+            ("screenshot_path", "TEXT DEFAULT ''"),
+            ("user_feedback", "TEXT DEFAULT ''")
+        ]
+        for col_name, col_type in new_cols:
+            if col_name not in existing_cols:
+                try:
+                    cursor.execute(f"ALTER TABLE ScanHistory ADD COLUMN {col_name} {col_type}")
+                except Exception:
+                    pass
+
+        # Seed default admin
         cursor.execute("SELECT id FROM Users WHERE username = ?", ("admin",))
         if not cursor.fetchone():
             cursor.execute(
@@ -47,7 +68,8 @@ def init_db():
             ("paypal-security-alert-update.top", "paypal-security-alert-update.top", "Brand impersonation phishing domain"),
             ("appleid-verify-session.net", "appleid-verify-session.net", "Apple ID credential phishing campaign"),
             ("198.51.100.23", "198.51.100.23", "Malicious C2 / Phishing server IP"),
-            ("bankofamerica-login-confirm.com", "bankofamerica-login-confirm.com", "Financial institution phishing")
+            ("bankofamerica-login-confirm.com", "bankofamerica-login-confirm.com", "Financial institution phishing"),
+            ("netflix-billing-reactivate-alert.buzz", "netflix-billing-reactivate-alert.buzz", "Streaming subscription phishing kit")
         ]
         for pattern, domain, reason in default_blacklist:
             cursor.execute(
@@ -55,13 +77,32 @@ def init_db():
                 (pattern, domain, reason, "security_team")
             )
 
+        # Seed threat heatmap initial records
+        cursor.execute("SELECT COUNT(*) FROM ThreatHeatmap")
+        if cursor.fetchone()[0] == 0:
+            sample_heatmap = [
+                ("PayPal", "Credential Harvesting", "Critical", 18),
+                ("Microsoft", "Brand Impersonation", "High", 24),
+                ("Apple", "Credential Harvesting", "Critical", 14),
+                ("Chase Bank", "Fake Payment Form", "Critical", 11),
+                ("Netflix", "Scareware / Suspension", "Medium", 8),
+                ("Google", "OAuth / Login Cloner", "Critical", 29),
+                ("Binance", "Wallet Draining", "Critical", 9)
+            ]
+            for brand, vector, lvl, cnt in sample_heatmap:
+                cursor.execute(
+                    "INSERT INTO ThreatHeatmap (target_brand, attack_vector, threat_level, hit_count) VALUES (?, ?, ?, ?)",
+                    (brand, vector, lvl, cnt)
+                )
+
         # Seed default settings
         default_settings = [
-            ("risk_threshold_phishing", "0.75", "Probability threshold for classifying as Phishing"),
-            ("risk_threshold_suspicious", "0.45", "Probability threshold for classifying as Suspicious"),
+            ("risk_threshold_phishing", "75.0", "Threshold for classifying as PHISHING"),
+            ("risk_threshold_suspicious", "40.0", "Threshold for classifying as SUSPICIOUS"),
             ("rate_limit_per_minute", "120", "Max requests allowed per client IP per minute"),
             ("auto_block_critical", "true", "Automatically trigger blocking warning on Critical/Phishing status"),
-            ("offline_mode", "false", "Force local heuristic rule fallback")
+            ("visual_ai_enabled", "true", "Enable computer vision screenshot comparison"),
+            ("ocr_detector_enabled", "true", "Enable optical text scanning for urgent keywords")
         ]
         for key, val, desc in default_settings:
             cursor.execute(
@@ -78,6 +119,55 @@ def init_db():
 # Scan History Operations
 # ==========================================
 
+def log_hybrid_scan(
+    url: str,
+    domain: str,
+    prediction: str,
+    confidence: float,
+    risk_level: str,
+    hybrid_score: float,
+    layer_scores: Dict[str, Any],
+    scan_time_ms: float,
+    reasons: List[str],
+    features: Dict[str, Any],
+    html_hash: str = "",
+    screenshot_path: str = "",
+    client_ip: str = "127.0.0.1"
+) -> int:
+    """Inserts a comprehensive multi-layer scan record into the database."""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO ScanHistory (
+                url, domain, html_hash, prediction, confidence, risk_level,
+                hybrid_score, layer_scores_json, scan_time_ms, reasons,
+                features_json, screenshot_path, client_ip
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                url,
+                domain,
+                html_hash,
+                prediction,
+                float(confidence),
+                risk_level,
+                float(hybrid_score),
+                json.dumps(layer_scores),
+                float(scan_time_ms),
+                json.dumps(reasons),
+                json.dumps(features),
+                screenshot_path or "",
+                client_ip
+            )
+        )
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+
 def log_scan(
     url: str,
     domain: str,
@@ -89,33 +179,20 @@ def log_scan(
     features: Dict[str, Any],
     client_ip: str = "127.0.0.1"
 ) -> int:
-    """Inserts a new scan log into the database."""
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO ScanHistory (
-                url, domain, prediction, confidence, risk_level,
-                scan_time_ms, reasons, features_json, client_ip
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                url,
-                domain,
-                prediction,
-                float(confidence),
-                risk_level,
-                float(scan_time_ms),
-                json.dumps(reasons),
-                json.dumps(features),
-                client_ip
-            )
-        )
-        conn.commit()
-        return cursor.lastrowid
-    finally:
-        conn.close()
+    """Backwards compatible legacy log wrapper."""
+    return log_hybrid_scan(
+        url=url,
+        domain=domain,
+        prediction=prediction,
+        confidence=confidence,
+        risk_level=risk_level,
+        hybrid_score=confidence if prediction in ["Phishing", "Malicious", "PHISHING"] else 15.0,
+        layer_scores={"url_score": confidence},
+        scan_time_ms=scan_time_ms,
+        reasons=reasons,
+        features=features,
+        client_ip=client_ip
+    )
 
 
 def get_scan_history(
@@ -124,7 +201,7 @@ def get_scan_history(
     filter_status: Optional[str] = None,
     search: Optional[str] = None
 ) -> Tuple[List[Dict[str, Any]], int]:
-    """Retrieves paginated scan logs with optional status and search filtering."""
+    """Retrieves paginated scan logs with multi-layer breakdown."""
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
@@ -139,12 +216,10 @@ def get_scan_history(
             query += " AND (url LIKE ? OR domain LIKE ?)"
             params.extend([f"%{search}%", f"%{search}%"])
 
-        # Count total matches
         count_query = query.replace("SELECT *", "SELECT COUNT(*)", 1)
         cursor.execute(count_query, params)
         total_count = cursor.fetchone()[0]
 
-        # Fetch page
         query += " ORDER BY id DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
@@ -154,9 +229,11 @@ def get_scan_history(
         history = []
         for r in rows:
             item = dict(r)
-            item["reasons"] = json.loads(item["reasons"]) if item["reasons"] else []
-            item["features"] = json.loads(item["features_json"]) if item["features_json"] else {}
+            item["reasons"] = json.loads(item["reasons"]) if item.get("reasons") else []
+            item["features"] = json.loads(item["features_json"]) if item.get("features_json") else {}
+            item["layer_scores"] = json.loads(item.get("layer_scores_json") or "{}")
             item.pop("features_json", None)
+            item.pop("layer_scores_json", None)
             history.append(item)
 
         return history, total_count
@@ -173,7 +250,7 @@ def is_blacklisted(domain: str, raw_url: str = "") -> Tuple[bool, Optional[str]]
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        domain_clean = domain.lower().strip()
+        domain_clean = (domain or "").lower().strip()
         cursor.execute(
             "SELECT reason FROM Blacklist WHERE is_active = 1 AND (LOWER(pattern) = ? OR LOWER(domain) = ?)",
             (domain_clean, domain_clean)
@@ -182,7 +259,6 @@ def is_blacklisted(domain: str, raw_url: str = "") -> Tuple[bool, Optional[str]]
         if row:
             return True, row["reason"]
 
-        # Check wildcard or substring pattern
         cursor.execute("SELECT pattern, reason FROM Blacklist WHERE is_active = 1")
         for p in cursor.fetchall():
             pat = p["pattern"].lower()
@@ -275,8 +351,43 @@ def get_reports() -> List[Dict[str, Any]]:
 
 
 # ==========================================
-# Statistics & Analytics Operations
+# Dashboard & Heatmap Analytics
 # ==========================================
+
+def get_threat_heatmap() -> List[Dict[str, Any]]:
+    """Retrieves aggregated threat attack vectors and targeted brands."""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM ThreatHeatmap ORDER BY hit_count DESC LIMIT 10")
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def record_threat_hit(target_brand: str, attack_vector: str, threat_level: str = "High"):
+    """Increments threat count for brand/vector in heatmap."""
+    if not target_brand:
+        return
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO ThreatHeatmap (target_brand, attack_vector, threat_level, hit_count, last_detected)
+            VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON CONFLICT(target_brand, attack_vector) DO UPDATE SET
+               hit_count = hit_count + 1,
+               last_detected = CURRENT_TIMESTAMP
+            """,
+            (target_brand, attack_vector, threat_level)
+        )
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
 
 def get_dashboard_statistics() -> Dict[str, Any]:
     """Calculates comprehensive real-time statistics for the Admin Dashboard."""
@@ -288,13 +399,13 @@ def get_dashboard_statistics() -> Dict[str, Any]:
         cursor.execute("SELECT COUNT(*) FROM ScanHistory")
         total_scans = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(*) FROM ScanHistory WHERE prediction = 'Safe'")
+        cursor.execute("SELECT COUNT(*) FROM ScanHistory WHERE UPPER(prediction) = 'SAFE'")
         safe_count = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(*) FROM ScanHistory WHERE prediction = 'Suspicious'")
+        cursor.execute("SELECT COUNT(*) FROM ScanHistory WHERE UPPER(prediction) = 'SUSPICIOUS'")
         suspicious_count = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(*) FROM ScanHistory WHERE prediction IN ('Phishing', 'Malicious')")
+        cursor.execute("SELECT COUNT(*) FROM ScanHistory WHERE UPPER(prediction) IN ('PHISHING', 'MALICIOUS')")
         dangerous_count = cursor.fetchone()[0]
 
         cursor.execute("SELECT COUNT(*) FROM Blacklist WHERE is_active = 1")
@@ -305,21 +416,32 @@ def get_dashboard_statistics() -> Dict[str, Any]:
         avg_confidence = round(float(avg_conf_row), 1) if avg_conf_row else 0.0
 
         # 2. Prediction distribution
+        cursor.execute("SELECT prediction, COUNT(*) as cnt FROM ScanHistory GROUP BY prediction")
+        raw_pred_dist = {row["prediction"].upper(): row["cnt"] for row in cursor.fetchall()}
+        pred_dist = {
+            "SAFE": raw_pred_dist.get("SAFE", 0),
+            "SUSPICIOUS": raw_pred_dist.get("SUSPICIOUS", 0),
+            "PHISHING": raw_pred_dist.get("PHISHING", 0) + raw_pred_dist.get("MALICIOUS", 0)
+        }
+
+        # 3. Top targeted brands from heatmap
         cursor.execute(
-            "SELECT prediction, COUNT(*) as cnt FROM ScanHistory GROUP BY prediction"
+            """
+            SELECT target_brand, SUM(hit_count) as total_hits
+            FROM ThreatHeatmap
+            GROUP BY target_brand
+            ORDER BY total_hits DESC
+            LIMIT 6
+            """
         )
-        prediction_dist = {row["prediction"]: row["cnt"] for row in cursor.fetchall()}
+        top_brands = [dict(r) for r in cursor.fetchall()]
 
-        # Ensure all 4 classes exist in distribution
-        for cls in ["Safe", "Suspicious", "Phishing", "Malicious"]:
-            prediction_dist.setdefault(cls, 0)
-
-        # 3. Top suspicious/phishing domains
+        # 4. Top suspicious/phishing domains
         cursor.execute(
             """
             SELECT domain, COUNT(*) as count, prediction, MAX(confidence) as max_conf
             FROM ScanHistory
-            WHERE prediction IN ('Phishing', 'Malicious', 'Suspicious')
+            WHERE UPPER(prediction) IN ('PHISHING', 'MALICIOUS', 'SUSPICIOUS')
             GROUP BY domain
             ORDER BY count DESC
             LIMIT 7
@@ -327,13 +449,13 @@ def get_dashboard_statistics() -> Dict[str, Any]:
         )
         top_suspicious = [dict(r) for r in cursor.fetchall()]
 
-        # 4. Recent scan timeline (last 7 days / grouping)
+        # 5. Timeline daily scans
         cursor.execute(
             """
             SELECT DATE(created_at) as scan_date,
-                   SUM(CASE WHEN prediction = 'Safe' THEN 1 ELSE 0 END) as safe_cnt,
-                   SUM(CASE WHEN prediction IN ('Phishing', 'Malicious') THEN 1 ELSE 0 END) as phish_cnt,
-                   SUM(CASE WHEN prediction = 'Suspicious' THEN 1 ELSE 0 END) as susp_cnt,
+                   SUM(CASE WHEN UPPER(prediction) = 'SAFE' THEN 1 ELSE 0 END) as safe_cnt,
+                   SUM(CASE WHEN UPPER(prediction) IN ('PHISHING', 'MALICIOUS') THEN 1 ELSE 0 END) as phish_cnt,
+                   SUM(CASE WHEN UPPER(prediction) = 'SUSPICIOUS' THEN 1 ELSE 0 END) as susp_cnt,
                    COUNT(*) as total
             FROM ScanHistory
             GROUP BY DATE(created_at)
@@ -343,7 +465,7 @@ def get_dashboard_statistics() -> Dict[str, Any]:
         )
         daily_scans = [dict(r) for r in cursor.fetchall()]
 
-        # 5. Confidence Distribution ranges
+        # 6. Confidence distribution
         cursor.execute(
             """
             SELECT
@@ -362,11 +484,14 @@ def get_dashboard_statistics() -> Dict[str, Any]:
             "< 50%": conf_row[3] or 0
         }
 
-        # 6. User feedback counts
+        # 7. User feedback counts
         cursor.execute("SELECT COUNT(*) FROM Reports WHERE user_feedback = 'false_positive'")
         fp_count = cursor.fetchone()[0]
         cursor.execute("SELECT COUNT(*) FROM Reports WHERE user_feedback = 'false_negative'")
         fn_count = cursor.fetchone()[0]
+
+        # 8. Threat Heatmap
+        heatmap = get_threat_heatmap()
 
         return {
             "total_scans": total_scans,
@@ -375,10 +500,12 @@ def get_dashboard_statistics() -> Dict[str, Any]:
             "dangerous_scans": dangerous_count,
             "blocked_domains": blocked_count,
             "average_confidence": avg_confidence,
-            "prediction_distribution": prediction_dist,
+            "prediction_distribution": pred_dist,
+            "top_brands": top_brands,
             "top_suspicious_domains": top_suspicious,
             "daily_scans": daily_scans,
             "confidence_distribution": conf_dist,
+            "threat_heatmap": heatmap,
             "false_positives": fp_count,
             "false_negatives": fn_count
         }
@@ -395,7 +522,7 @@ def save_model_benchmarks(benchmarks: Dict[str, Any], active_model_name: str):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM ModelMetrics")  # Refresh with current benchmarks
+        cursor.execute("DELETE FROM ModelMetrics")
         for name, metrics in benchmarks.items():
             cursor.execute(
                 """

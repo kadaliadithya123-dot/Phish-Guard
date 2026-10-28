@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PHISH GUARD - ML Threat Detector",
-  "version": "1.0.0",
-  "description": "Real-time Machine Learning and cybersecurity heuristic defense against phishing and malicious URLs.",
+  "name": "PHISH GUARD - Hybrid AI Security System",
+  "version": "2.0.0",
+  "description": "Next-generation real-time hybrid phishing detection analyzing URLs, HTML DOM, forms, JavaScript, and visual brand appearance.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -15,7 +15,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "PHISH GUARD Protection Status"
+    "default_title": "PHISH GUARD Hybrid Security"
   },
   "background": {
     "service_worker": "background.js"
@@ -34,9 +34,12 @@
   "permissions": [
     "tabs",
     "storage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*",
     "https://phish-guard-api.onrender.com/*",
     "http://*/*",
     "https://*/*"

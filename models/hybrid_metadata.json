@@ -1,0 +1,275 @@
+{
+    "active_model_name": "K-Nearest Neighbors",
+    "feature_count": 101,
+    "feature_names": [
+        "url_length",
+        "domain_length",
+        "path_length",
+        "query_length",
+        "fragment_length",
+        "count_dots",
+        "count_hyphens",
+        "count_underscore",
+        "count_slash",
+        "count_question",
+        "count_equal",
+        "count_at",
+        "count_amp",
+        "count_excl",
+        "count_tilde",
+        "count_percent",
+        "count_plus",
+        "count_digits",
+        "count_letters",
+        "digit_to_letter_ratio",
+        "count_subdomains",
+        "has_https",
+        "has_http",
+        "has_port",
+        "has_ip_address",
+        "has_punycode",
+        "has_homoglyphs",
+        "is_shortened_url",
+        "tld_risk_score",
+        "consecutive_hyphens",
+        "tld_in_subdomain",
+        "has_double_slash_path",
+        "has_dangerous_ext",
+        "num_parameters",
+        "url_entropy",
+        "domain_entropy",
+        "path_entropy",
+        "suspicious_keywords_count",
+        "brand_impersonation",
+        "dns_resolvable",
+        "domain_length_ratio",
+        "path_length_ratio",
+        "title_length",
+        "has_empty_title",
+        "total_links",
+        "internal_links",
+        "external_links",
+        "external_link_ratio",
+        "empty_link_ratio",
+        "iframe_count",
+        "invisible_iframes",
+        "total_scripts",
+        "inline_scripts",
+        "external_scripts",
+        "hidden_elements_count",
+        "meta_count",
+        "has_meta_refresh",
+        "scareware_detected",
+        "has_cryptominer",
+        "has_fingerprinting",
+        "has_disabled_rightclick",
+        "has_clipboard_hijack",
+        "has_fake_popup",
+        "content_num_forms",
+        "content_num_passwords",
+        "base64_scripts_count",
+        "content_threat_score",
+        "total_forms",
+        "has_password_field",
+        "has_credit_card_field",
+        "has_otp_field",
+        "has_email_field",
+        "total_inputs",
+        "hidden_inputs",
+        "external_action_count",
+        "empty_action_count",
+        "http_action_on_https",
+        "suspicious_method_count",
+        "form_threat_score",
+        "js_has_eval",
+        "js_has_doc_write",
+        "js_has_func_constructor",
+        "js_has_atob",
+        "js_has_heavy_hex",
+        "js_has_packer",
+        "js_has_obfuscated_vars",
+        "js_has_keylogging",
+        "js_has_credential_interceptor",
+        "js_has_fetch_beacon",
+        "js_has_location_replace",
+        "js_has_history_tamper",
+        "js_has_window_opener_exploit",
+        "js_has_clipboard_write",
+        "js_threat_score",
+        "total_images",
+        "external_image_ratio",
+        "base64_image_count",
+        "has_brand_logo_abuse",
+        "has_spoofed_favicon",
+        "has_quishing_indicator",
+        "image_threat_score"
+    ],
+    "train_samples": 2400,
+    "test_samples": 600,
+    "champion_metrics": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "roc_auc": 1.0,
+        "training_time": 0.0029,
+        "confusion_matrix": [
+            [
+                300,
+                0
+            ],
+            [
+                0,
+                300
+            ]
+        ]
+    },
+    "all_model_benchmarks": {
+        "Random Forest": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 0.3781,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        },
+        "Extra Trees": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 0.1832,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        },
+        "Gradient Boosting": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 0.4111,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        },
+        "AdaBoost": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 0.0098,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        },
+        "Voting Ensemble": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 5.2271,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        },
+        "Decision Tree": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 0.0051,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        },
+        "K-Nearest Neighbors": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 0.0029,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        },
+        "Gaussian Naive Bayes": {
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "roc_auc": 1.0,
+            "training_time": 0.0066,
+            "confusion_matrix": [
+                [
+                    300,
+                    0
+                ],
+                [
+                    0,
+                    300
+                ]
+            ]
+        }
+    },
+    "feature_importances": {},
+    "created_at": "2026-10-28 19:43:29"
+}

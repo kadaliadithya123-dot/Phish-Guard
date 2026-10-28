@@ -10,6 +10,7 @@ const PhishGuardCharts = (function () {
   let topSuspiciousChartInstance = null;
   let confidenceDistChartInstance = null;
   let weeklyScansChartInstance = null;
+  let brandAttacksChartInstance = null;
 
   // Modern Chart.js Global Theme Options
   const chartFont = { family: "'Plus Jakarta Sans', sans-serif", size: 11 };
@@ -278,6 +279,57 @@ const PhishGuardCharts = (function () {
     });
   }
 
+  // 7. Brand Impersonation Attacks Horizontal Bar Chart
+  function renderBrandAttacks(topBrands) {
+    const ctx = document.getElementById("brandAttacksChart");
+    if (!ctx) return;
+
+    if (brandAttacksChartInstance) {
+      brandAttacksChartInstance.destroy();
+    }
+
+    const tc = getThemeColors();
+    const hasData = topBrands && topBrands.length > 0;
+    const labels = hasData 
+      ? topBrands.map(b => b.target_brand || b.brand || "Unknown")
+      : ["Microsoft", "PayPal", "Google", "Amazon", "Apple", "Netflix"];
+    const dataVals = hasData 
+      ? topBrands.map(b => b.total_hits || b.count || 0)
+      : [32, 27, 21, 16, 12, 9];
+
+    brandAttacksChartInstance = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Detected Spoofing Attacks",
+          data: dataVals,
+          backgroundColor: [
+            "#ef4444", "#f59e0b", "#38bdf8", "#a855f7", "#ec4899", "#6366f1"
+          ],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: tc.tooltipBg,
+            titleColor: tc.tooltipText,
+            bodyColor: tc.tooltipText
+          }
+        },
+        scales: {
+          x: { grid: { color: tc.gridColor }, ticks: { color: tc.textColor, font: chartFont, precision: 0 } },
+          y: { grid: { display: false }, ticks: { color: tc.textColor, font: chartFont } }
+        }
+      }
+    });
+  }
+
   return {
     renderAll(stats) {
       if (!stats) return;
@@ -287,6 +339,7 @@ const PhishGuardCharts = (function () {
       renderTopSuspicious(stats.top_suspicious_domains);
       renderConfidenceDist(stats.confidence_distribution);
       renderWeeklyScans();
+      renderBrandAttacks(stats.top_brands);
     },
     updateTheme() {
       // Re-render when theme toggles
